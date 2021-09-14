@@ -1,6 +1,8 @@
-# Buildpack: Clojure
+# Scalingo Clojure Buildpack
 
 This is a buildpack for Clojure apps.
+
+![clojure](https://cloud.githubusercontent.com/assets/51578/13712844/d37ac78c-e793-11e5-9f0a-d033eb4f6f9f.png)
 
 It uses [Leiningen](http://leiningen.org).
 
@@ -9,43 +11,47 @@ with Clojure apps on Scalingo; it will be used by default for all
 projects containing a project.clj file, though it may be an older
 revision than what you're currently looking at.
 
+[Scalingo Documentation](https://doc.scalingo.com/languages/clojure/start)
+
 ## Usage
 
 Example usage for an app already stored in git:
+```
+$ tree
+|-- Procfile
+|-- project.clj
+|-- README
+`-- src
+    `-- sample
+        `-- core.clj
 
-    $ tree
-    |-- Procfile
-    |-- project.clj
-    |-- README
-    `-- src
-        `-- sample
-            `-- core.clj
+$ scalingo create clojure-app
 
-    $ scalingo create clojure-app
-
-    $ git push scalingo master
-    ...
-    -----> Fetching custom buildpack
-    -----> Clojure app detected
-    -----> Installing Leiningen
-           Downloading: leiningen-2.2.0-standalone.jar
-           Writing: lein script
-    -----> Building with Leiningen
-           Running: with-profile production compile :all
-           Downloading: org/clojure/clojure/1.2.1/clojure-1.2.1.pom from central
-           Downloading: org/clojure/clojure/1.2.1/clojure-1.2.1.jar from central
-           Copying 1 file to /tmp/build_2e5yol0778bcw/lib
-    -----> Discovering process types
-           Procfile declares types -> core
-    Build complete, shipping your container
-    Waiting for you applicaation to boot
-    <-- https://clojure-app.scalingo.io -->
+$ git push scalingo master
+...
+-----> Fetching custom buildpack
+-----> Clojure (Leiningen 2) app detected
+-----> Installing OpenJDK 1.8...done
+-----> Installing Leiningen
+       Downloading: leiningen-2.5.2-standalone.jar
+       Writing: lein script
+-----> Building with Leiningen
+       Running: lein uberjar
+       Created /tmp/build_37f1ae84b9f8b63c3ddef2a4b691ef41/target/clojure-getting-started-1.0.0-SNAPSHOT.jar
+       Created /tmp/build_37f1ae84b9f8b63c3ddef2a4b691ef41/target/clojure-getting-started-standalone.jar
+-----> Discovering process types
+        Procfile declares types -> web
+Build complete, shipping your container
+Waiting for you applicaation to boot
+<-- https://clojure-app.scalingo.io -->
+```
 
 The buildpack will detect your app as Clojure if it has a
 `project.clj` file in the root. If you use the
 [clojure-maven-plugin](https://github.com/talios/clojure-maven-plugin),
 [the standard Java buildpack](http://github.com/Scalingo/java-buildpack)
 should work instead.
+
 
 ## Configuration
 
@@ -64,13 +70,13 @@ into production.
 In order to ensure consistent builds, normally values set with `scalingo
 env-set ...` (other than `LEIN_USERNAME`, `LEIN_PASSWORD`, and
 `LEIN_PASSPHRASE`) will not be visible at compile time. To expose more
-to the compilation process, set a `BUILD_CONFIG_WHITELIST` config var
+to the compilation process, set a `BUILD_CONFIG_ALLOWLIST` config var
 containing a space-delimited list of config var names. Note that this
 can result in unpredictable behaviour since changing your app's config
 does not result in a rebuild of your app. So it's easy to get into a
 situation where your build is broken, but you don't notice it until
 later when you push. For this reason it's recommended to take care
-with this feature and always push after changing a whitelisted config
+with this feature and always push after changing a allowlisted config
 value.
 
 ### Uberjar
@@ -83,7 +89,7 @@ If your main namespace doesn't have a `:gen-class` then you can use
 `clojure.main` as your entry point and indicate your app's main
 namespace using the `-m` argument in your `Procfile`:
 
-    web: java $JVM_OPTS -cp target/myproject-standalone.jar clojure.main -m myproject.web
+    web: java -cp target/myproject-standalone.jar clojure.main -m myproject.web
 
 If you have custom settings you would like to only apply during build,
 you can place them in an `:uberjar` profile. This can be useful to use
@@ -91,7 +97,7 @@ AOT-compiled classes in production but not during development where
 they can cause reloading issues:
 
 ```clj
-  :profiles {:uberjar {:main myproject.web, :aot :all}}
+:profiles {:uberjar {:main myproject.web, :aot :all}}
 ```
 
 If you need Leiningen in a `scalingo run` session, it will be downloaded
@@ -123,12 +129,18 @@ If neither of these options get you quite what you need, you can check
 in your own executable `bin/build` script into your app's repo and it
 will be run instead of `compile` or `uberjar` after setting up Leiningen.
 
+## Leiningen Version
+
+The buildpack will check for a `bin/lein` script in the repo, and run it instead
+of the default `lein` command. This allows you to control the exact version of
+Leiningen used to build the app.
+
 ## JDK Version
 
-By default you will get OpenJDK 1.6. To use a different version, you
+By default you will get OpenJDK 1.8. To use a different version, you
 can commit a `system.properties` file to your app.
 
-```
+```sh-session
 $ echo "java.runtime.version=1.7" > system.properties
 $ git add system.properties
 $ git commit -m "JDK 7"
@@ -146,14 +158,16 @@ For example, you could adapt it to generate a tarball at build time.
 Open `bin/compile` in your editor, and replace the block labeled
 "Calculate build command" with something like this:
 
-    echo "-----> Generating tar with Leiningen:"
-    echo "       Running: lein tar"
-    cd $BUILD_DIR
-    PATH=.lein/bin:/usr/local/bin:/usr/bin:/bin JAVA_OPTS="-Xmx500m -Duser.home=$BUILD_DIR" lein tar 2>&1 | sed -u 's/^/       /'
-    if [ "${PIPESTATUS[*]}" != "0 0" ]; then
-      echo " !     Failed to create tar with Leiningen"
-      exit 1
-    fi
+```bash
+echo "-----> Generating tar with Leiningen:"
+echo "       Running: lein tar"
+cd $BUILD_DIR
+PATH=.lein/bin:/usr/local/bin:/usr/bin:/bin JAVA_OPTS="-Xmx500m -Duser.home=$BUILD_DIR" lein tar 2>&1 | sed -u 's/^/       /'
+if [ "${PIPESTATUS[*]}" != "0 0" ]; then
+    echo " !     Failed to create tar with Leiningen"
+    exit 1
+fi
+```
 
 Commit and push the changes to your buildpack to your GitHub fork,
 then push your sample app to Scalingo to test. The output should include:

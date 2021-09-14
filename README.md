@@ -11,6 +11,8 @@ with Clojure apps on Scalingo; it will be used by default for all
 projects containing a project.clj file, though it may be an older
 revision than what you're currently looking at.
 
+[Scalingo Documentation](https://doc.scalingo.com/languages/clojure/start)
+
 ## Usage
 
 Example usage for an app already stored in git:

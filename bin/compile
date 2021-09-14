@@ -4,6 +4,10 @@
 # fail fast
 set -e
 
+if [ -n "$BUILDPACK_DEBUG" ]; then
+    set -x
+fi
+
 BPLOG_PREFIX="buildpack.clojure"
 
 # parse args

@@ -60,7 +60,7 @@ install_jdk() {
   # Load common JVM functionality from http://github.com/Scalingo/buildpack-jvm-common
   JVM_COMMON_BUILDPACK=${JVM_COMMON_BUILDPACK:-https://buildpacks-repository.s3.eu-central-1.amazonaws.com/jvm-common.tar.xz}
   mkdir -p /tmp/jvm-common
-  curl --retry 3 --silent --location $JVM_COMMON_BUILDPACK | tar xzm -C /tmp/jvm-common --strip-components=1
+  curl --retry 3 --silent --location $JVM_COMMON_BUILDPACK | tar xJm -C /tmp/jvm-common --strip-components=1
   source /tmp/jvm-common/bin/util
   source /tmp/jvm-common/bin/java
   source /tmp/jvm-common/opt/jdbc.sh

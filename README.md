@@ -2,8 +2,6 @@
 
 This is a buildpack for Clojure apps.
 
-![clojure](https://cloud.githubusercontent.com/assets/51578/13712844/d37ac78c-e793-11e5-9f0a-d033eb4f6f9f.png)
-
 It uses [Leiningen](http://leiningen.org).
 
 Note that you don't have to do anything special to use this buildpack

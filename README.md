@@ -5,9 +5,9 @@ for apps that use [Leiningen](https://leiningen.org/) as their build tool. It's
 primarily used to build [Clojure](https://clojure.org/) applications.
 
 If you're using a different JVM build tool, use the appropriate buildpack:
-* [Java buildpack](https://github.com/heroku/heroku-buildpack-java) for [Maven](https://maven.apache.org/) projects
-* [Gradle buildpack](https://github.com/heroku/heroku-buildpack-gradle) for [Gradle](https://gradle.org/) projects
-* [Scala buildpack](https://github.com/heroku/heroku-buildpack-scala) for [sbt](https://www.scala-sbt.org/) projects
+* [Java buildpack](https://github.com/Scalingo/java-buildpack) for [Maven](https://maven.apache.org/) projects
+* [Gradle buildpack](https://github.com/Scalingo/gradle-buildpack) for [Gradle](https://gradle.org/) projects
+* [Scala buildpack](https://github.com/Scalingo/scala-buildpack) for [sbt](https://www.scala-sbt.org/) projects
 
 ## Table of Contents
 

@@ -19,11 +19,12 @@ else
 		Warning: Using minimal rlwrap replacement. Command history and line editing are not available.
 		To enable full readline support, add the APT buildpack and create an Aptfile:
 
-			1. heroku buildpacks:add --index 1 heroku-community/apt
-			2. echo "rlwrap" > Aptfile
-			3. git add Aptfile && git commit -m "Add rlwrap support"
-			4. git push heroku main
-
+		  1. Use a multi-buildpack with the following buildpacks URLs:
+		     https://github.com/Scalingo/apt-buildpack
+		     https://github.com/Scalingo/clojure-buildpack
+		  2. echo "rlwrap" > Aptfile
+		  3. git add .buildpacks Aptfile && git commit -m "Add rlwrap support"
+		  4. git push scalingo main
 	EOF
 
 	# Strip rlwrap options, leaving only the wrapped command.

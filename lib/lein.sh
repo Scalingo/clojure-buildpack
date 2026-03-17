@@ -1,56 +1,46 @@
 #!/usr/bin/env bash
 
-calculate_lein_build_task() {
-  local buildDir=${1}
-  if [ "$(grep :uberjar-name $buildDir/project.clj)" != "" ]; then
-    export LEIN_BUILD_TASK="${LEIN_BUILD_TASK:-uberjar}"
-    export LEIN_INCLUDE_IN_SLUG="${LEIN_INCLUDE_IN_SLUG:-no}"
-  elif [ "$(grep lein-npm $buildDir/project.clj)" != "" ]; then
-    export LEIN_BUILD_TASK=${LEIN_BUILD_TASK:-"with-profile production do deps, compile :all"}
-  else
-    export LEIN_BUILD_TASK=${LEIN_BUILD_TASK:-"with-profile production compile :all"}
-  fi
-}
+# This is technically redundant, since all consumers of this lib will have enabled these,
+# however, it helps Shellcheck realise the options under which these functions will run.
+set -euo pipefail
 
-is_lein_2() {
-  local buildDir=${1}
-  if [ "$(grep ":min-lein-version[[:space:]]\+\"2" $BUILD_DIR/project.clj)" != "" ]; then
-    return 0
-  else
-    return 1
-  fi
-}
+BUILDPACK_DIR="$(cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")" && pwd)"
 
-install_rlwrap() {
-  local buildDir="${1:?}"
-  local cacheDir="${2:?}"
+# shellcheck source=lib/output.sh
+source "${BUILDPACK_DIR}/lib/output.sh"
+# shellcheck source=lib/metrics.sh
+source "${BUILDPACK_DIR}/lib/metrics.sh"
 
-  APT_CACHE_DIR="$cacheDir/apt/cache"
-  APT_STATE_DIR="$cacheDir/apt/state"
-  APT_OPTIONS="-o debug::nolocking=true -o dir::cache=$APT_CACHE_DIR -o dir::state=$APT_STATE_DIR"
+lein::get_project_property() {
+	local project_file="${1}"
+	shift
+	local property_path=("${@}")
 
-  mkdir -p "$APT_CACHE_DIR/archives/partial"
-  mkdir -p "$APT_STATE_DIR/lists/partial"
+	local output
+	if output=$("${BUILDPACK_DIR}/opt/get_project_property.clj" "${project_file}" "${property_path[@]}" 2>&1); then
+		echo "${output}"
+	else
+		local exit_code=${?}
 
-  echo "-----> Installing rlwrap... "
-  apt-get $APT_OPTIONS update | indent
-  apt-get $APT_OPTIONS -y -d install --reinstall rlwrap | indent
+		if [[ ${exit_code} -eq 2 ]]; then
+			output::error <<-EOF
+				Error: Unable to parse project.clj
 
-  mkdir -p $buildDir/.profile.d
-  cat <<EOF >$buildDir/.profile.d/rlwrap.sh
-  export PATH="\$HOME/.heroku/apt/usr/bin:\$PATH"
-  export LD_LIBRARY_PATH="\$HOME/.heroku/apt/usr/lib/x86_64-linux-gnu:\$HOME/.heroku/apt/usr/lib/i386-linux-gnu:\$HOME/.heroku/apt/usr/lib:\$LD_LIBRARY_PATH"
-  export LIBRARY_PATH="\$HOME/.heroku/apt/usr/lib/x86_64-linux-gnu:\$HOME/.heroku/apt/usr/lib/i386-linux-gnu:\$HOME/.heroku/apt/usr/lib:\$LIBRARY_PATH"
-  export INCLUDE_PATH="\$HOME/.heroku/apt/usr/include:\$INCLUDE_PATH"
-  export CPATH="\$INCLUDE_PATH"
-  export CPPPATH="\$INCLUDE_PATH"
-  export PKG_CONFIG_PATH="\$HOME/.heroku/apt/usr/lib/x86_64-linux-gnu/pkgconfig:\$HOME/.heroku/apt/usr/lib/i386-linux-gnu/pkgconfig:\$HOME/.heroku/apt/usr/lib/pkgconfig:\$PKG_CONFIG_PATH"
-  export PYTHONPATH="\$HOME/.heroku/apt/usr/lib/python2.7/dist-packages"
-  export SCREENDIR="\$HOME/.heroku/apt/var/run/screen"
-EOF
+				Your project.clj file couldn't be parsed because it contains
+				invalid Clojure syntax. This is usually caused by unbalanced
+				parentheses or other syntax errors.
 
-  for DEB in $(ls -1 $APT_CACHE_DIR/archives/*.deb); do
-    dpkg -x $DEB $buildDir/.heroku/apt/
-  done
-  chmod +x $buildDir/.heroku/apt/usr/bin/*
+				project.clj contents:
+				$(cat "${project_file}")
+
+				Check your project.clj file for syntax errors. You can verify
+				the syntax locally by running 'lein version' in your project
+				directory.
+			EOF
+
+			metrics::set_string "failure_reason" "project-clj-malformed"
+		fi
+
+		return ${exit_code}
+	fi
 }

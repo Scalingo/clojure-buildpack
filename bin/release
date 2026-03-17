@@ -1,31 +1,33 @@
 #!/usr/bin/env bash
-# bin/release <build-dir>
 
-export BUILD_DIR=$1
+set -euo pipefail
 
-BP_DIR=$(cd $(dirname $0)/..; pwd)
-BIN_DIR=$BP_DIR/bin
-LIB_DIR=$BP_DIR/lib
+BUILDPACK_DIR="$(cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")" && pwd)"
 
-source $LIB_DIR/common.sh
-source $LIB_DIR/lein.sh
+BUILD_DIR="${1}"
 
-if [ ! -f $BUILD_DIR/Procfile ]; then
-  cat <<EOF
+# Unfortunately the build system doesn't source the `export` script before
+# running `bin/release`, so we have to do so manually to ensure Clojure CLI
+# and OpenJDK are available for the property extraction script.
+# shellcheck source=/dev/null
+source "${BUILDPACK_DIR}/export"
+
+lein_project_uberjar_name=$("${BUILDPACK_DIR}/opt/get_project_property.clj" "${BUILD_DIR}/project.clj" "uberjar-name")
+
+if [[ ! -f "${BUILD_DIR}/Procfile" ]]; then
+	cat <<EOF
 ---
 config_vars:
 default_process_types:
 EOF
 
-  if [ "$(calculate_lein_build_task $BUILD_DIR)" == "uberjar" ]; then
-    cd $BUILD_DIR
-    for jarFile in $(find target -maxdepth 1 -name "*.jar" -type f); do
-      echo "  web: java -jar $jarFile"
-      break
-    done
-  elif is_lein_2 $BUILD_DIR; then
-    echo "  web: lein with-profile production trampoline run"
-  else
-    echo "  web: lein trampoline run"
-  fi
+	if [[ -n "${lein_project_uberjar_name}" ]]; then
+		cd "${BUILD_DIR}" || exit
+		while IFS= read -r -d '' jarFile; do
+			echo "  web: java -jar ${jarFile}"
+			break
+		done < <(find target -maxdepth 1 -name "*.jar" -type f -print0)
+	else
+		echo "  web: lein with-profile production trampoline run"
+	fi
 fi
